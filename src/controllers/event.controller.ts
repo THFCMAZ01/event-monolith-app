@@ -1,0 +1,259 @@
+import { PrismaClient, UserRole } from '@prisma/client';
+import wsService from '../services/websocket.service';
+import emailService from '../services/email.service';
+
+const prisma = new PrismaClient();
+
+export class EventController {
+  async getAllEvents(): Promise<any[]> {
+    const events = await prisma.event.findMany({
+      where: { approved: true },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: { rsvps: true },
+        },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    return events;
+  }
+
+  async getAllEventsAdmin(): Promise<any[]> {
+    const events = await prisma.event.findMany({
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+        _count: {
+          select: { rsvps: true },
+        },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    return events;
+  }
+
+  async getEventById(eventId: string): Promise<any> {
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+        rsvps: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!event) {
+      throw new Error('Event not found');
+    }
+
+    return event;
+  }
+
+  async createEvent(
+    userId: string,
+    data: {
+      title: string;
+      description: string;
+      date: string;
+      location: string;
+    }
+  ): Promise<any> {
+    const { title, description, date, location } = data;
+
+    if (!title || !description || !date || !location) {
+      throw new Error('All fields are required');
+    }
+
+    const eventDate = new Date(date);
+    if (isNaN(eventDate.getTime())) {
+      throw new Error('Invalid date format');
+    }
+
+    if (eventDate < new Date()) {
+      throw new Error('Event date must be in the future');
+    }
+
+    const event = await prisma.event.create({
+      data: {
+        title,
+        description,
+        date: eventDate,
+        location,
+        organizerId: userId,
+        approved: false,
+      },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    wsService.notifyEventCreated(event);
+
+    return event;
+  }
+
+  async updateEvent(
+    eventId: string,
+    userId: string,
+    userRole: UserRole,
+    data: Partial<{
+      title: string;
+      description: string;
+      date: string;
+      location: string;
+    }>
+  ): Promise<any> {
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!existingEvent) {
+      throw new Error('Event not found');
+    }
+
+    if (existingEvent.organizerId !== userId && userRole !== UserRole.ADMIN) {
+      throw new Error('You do not have permission to update this event');
+    }
+
+    let eventDate: Date | undefined;
+    if (data.date) {
+      eventDate = new Date(data.date);
+      if (isNaN(eventDate.getTime())) {
+        throw new Error('Invalid date format');
+      }
+      if (eventDate < new Date()) {
+        throw new Error('Event date must be in the future');
+      }
+    }
+
+    const updatedEvent = await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        ...(data.title && { title: data.title }),
+        ...(data.description && { description: data.description }),
+        ...(eventDate && { date: eventDate }),
+        ...(data.location && { location: data.location }),
+      },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    wsService.notifyEventUpdated(updatedEvent);
+
+    return updatedEvent;
+  }
+
+  async deleteEvent(
+    eventId: string,
+    userId: string,
+    userRole: UserRole
+  ): Promise<{ message: string }> {
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!existingEvent) {
+      throw new Error('Event not found');
+    }
+
+    if (existingEvent.organizerId !== userId && userRole !== UserRole.ADMIN) {
+      throw new Error('You do not have permission to delete this event');
+    }
+
+    await prisma.rsvp.deleteMany({
+      where: { eventId },
+    });
+
+    await prisma.event.delete({
+      where: { id: eventId },
+    });
+
+    wsService.notifyEventDeleted(eventId);
+
+    return { message: 'Event deleted successfully' };
+  }
+
+  async approveEvent(eventId: string): Promise<any> {
+    const existingEvent = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        organizer: true,
+      },
+    });
+
+    if (!existingEvent) {
+      throw new Error('Event not found');
+    }
+
+    if (existingEvent.approved) {
+      throw new Error('Event is already approved');
+    }
+
+    const approvedEvent = await prisma.event.update({
+      where: { id: eventId },
+      data: { approved: true },
+      include: {
+        organizer: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+          },
+        },
+      },
+    });
+
+    emailService.sendEventNotification(
+      existingEvent.organizer.email,
+      existingEvent.title,
+      'Your event has been approved and is now visible to all users!'
+    );
+
+    wsService.notifyEventApproved(approvedEvent);
+
+    return approvedEvent;
+  }
+}
+
+export default new EventController();

@@ -2,6 +2,7 @@
 import { API_URL } from './main.js';
 import { showNotification } from './ui.js';
 import { loadEvents } from './events.js';
+import { disconnectWebSocket, connectWebSocket } from './websockets.js';
 
 let token = localStorage.getItem('token');
 let currentUser = null;
@@ -31,8 +32,9 @@ export async function signup() {
         if (response.ok) {
             token = data.token;
             localStorage.setItem('token', token);
+            await loadProfile();
+            connectWebSocket();
             showNotification(data.message, 'success');
-            loadProfile();
         } else {
             showNotification(data.error, 'error');
         }
@@ -57,8 +59,9 @@ export async function login() {
         if (response.ok) {
             token = data.token;
             localStorage.setItem('token', token);
+            await loadProfile();
+            connectWebSocket();
             showNotification('Login successful!', 'success');
-            loadProfile();
         } else {
             showNotification(data.error, 'error');
         }
@@ -74,10 +77,15 @@ export function logout() {
     document.getElementById('authSection').classList.remove('hidden');
     document.getElementById('loggedInSection').classList.add('hidden');
     document.getElementById('userRole').textContent = 'Not logged in';
+    const createEventBtn = document.getElementById('createEventBtn');
+    if(createEventBtn) createEventBtn.classList.add('hidden');
+    disconnectWebSocket();
+    loadEvents();
     showNotification('Logged out', 'info');
 }
 
 export async function loadProfile() {
+    if (!token) return;
     try {
         const response = await fetch(`${API_URL}/auth/profile`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -93,11 +101,15 @@ export async function loadProfile() {
             document.getElementById('currentRole').textContent = data.role;
             document.getElementById('userRole').textContent = `Logged in as ${data.role}`;
 
-            if (data.role === 'ORGANIZER' || data.role === 'ADMIN') {
-                document.getElementById('createEventBtn').classList.remove('hidden');
+            const createEventBtn = document.getElementById('createEventBtn');
+            if(createEventBtn) {
+                if (data.role === 'ORGANIZER' || data.role === 'ADMIN') {
+                    createEventBtn.classList.remove('hidden');
+                } else {
+                    createEventBtn.classList.add('hidden');
+                }
             }
 
-            loadEvents();
         } else {
             logout();
         }

@@ -8,10 +8,13 @@ export function showNotification(message, type = 'info') {
     `;
     document.body.appendChild(notification);
 
-    setTimeout(() => {
+    const removeNotif = () => {
         notification.style.animation = 'slideInRight 0.3s ease-out reverse';
         setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    };
+
+    notification.addEventListener('click', removeNotif);
+    setTimeout(removeNotif, 4000);
 }
 
 export function openCreateModal() {

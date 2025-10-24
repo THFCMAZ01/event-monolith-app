@@ -7,9 +7,9 @@ import { connectWebSocket } from './websockets.js';
 export const API_URL = 'http://localhost:3000';
 export const WS_URL = 'ws://localhost:3000/ws';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     if (getToken()) {
-        loadProfile();
+        await loadProfile();
     }
     connectWebSocket();
     loadEvents();

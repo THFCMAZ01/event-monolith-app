@@ -12,18 +12,24 @@
     "prisma:studio": "prisma studio",
     "prisma:push": "prisma db push"
   },
-  "keywords": ["elysia", "prisma", "websocket", "authentication", "real-time"],
+  "keywords": [
+    "elysia",
+    "prisma",
+    "websocket",
+    "authentication",
+    "real-time"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "elysia": "^1.1.0",
-    "@elysiajs/swagger": "^1.1.0",
     "@elysiajs/cors": "^1.1.0",
     "@elysiajs/jwt": "^1.1.0",
+    "@elysiajs/swagger": "^1.1.0",
     "@prisma/client": "^5.18.0",
     "bcryptjs": "^2.4.3",
+    "elysia": "^1.1.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "^7.0.10",
     "zod": "^3.23.8"
   },
   "devDependencies": {

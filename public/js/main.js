@@ -1,6 +1,6 @@
 
 import { getToken, loadProfile, signup, login, logout } from './auth.js';
-import { loadEvents, createEvent, approveEvent, deleteEvent, rsvpEvent, filterEvents } from './events.js';
+import { loadEvents, createNewEvent, approveEvent, deleteEvent, rsvpEvent, filterEvents } from './events.js';
 import { openCreateModal, closeCreateModal } from './ui.js';
 import { connectWebSocket } from './websockets.js';
 
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.login = login;
     window.logout = logout;
     window.loadEvents = loadEvents;
-    window.createEvent = createEvent;
+    window.createNewEvent = createNewEvent;
     window.approveEvent = approveEvent;
     window.deleteEvent = deleteEvent;
     window.rsvpEvent = rsvpEvent;

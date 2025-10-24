@@ -70,7 +70,7 @@ export function displayEvents(events, currentUser) {
     `).join('');
 }
 
-export async function createEvent() {
+export async function createNewEvent() {
     const token = getToken();
     const title = document.getElementById('eventTitle').value;
     const description = document.getElementById('eventDescription').value;
@@ -151,8 +151,7 @@ export async function deleteEvent(eventId) {
             loadEvents();
         } else {
             showNotification(data.error, 'error');
-        }
-    } catch (error) {
+        }n    } catch (error) {
         showNotification('Failed to delete event: ' + error.message, 'error');
     }
 }
@@ -171,7 +170,7 @@ export async function rsvpEvent(eventId, status) {
 
         const data = await response.json();
 
-        if (.ok) {
+        if (response.ok) {
             showNotification(`RSVP updated to ${status}!`, 'success');
             loadEvents();
         } else {
@@ -189,9 +188,3 @@ export function filterEvents(searchTerm) {
     );
     displayEvents(filteredEvents, currentUser);
 }
-
-window.createEvent = createEvent;
-window.approveEvent = approveEvent;
-window.deleteEvent = deleteEvent;
-window.rsvpEvent = rsvpEvent;
-window.filterEvents = filterEvents;

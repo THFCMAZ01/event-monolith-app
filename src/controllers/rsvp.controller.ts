@@ -65,7 +65,8 @@ export class RSVPController {
       },
     });
 
-    if (rsvp.createdAt.getTime() === new Date().getTime()) {
+    // Check if the record was just created
+    if (rsvp.createdAt.getTime() === rsvp.updatedAt.getTime()) {
       wsService.notifyRSVPCreated(rsvp);
     } else {
       wsService.notifyRSVPUpdated(rsvp);

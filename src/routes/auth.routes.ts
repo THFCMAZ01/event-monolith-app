@@ -6,16 +6,7 @@ import { UserRole } from '@prisma/client';
 export const authRoutes = new Elysia({ prefix: '/auth' })
   .post(
     '/signup',
-    async ({ body, set }) => {
-      try {
-        const result = await authController.signup(body);
-        set.status = 201;
-        return result;
-      } catch (error: any) {
-        set.status = 400;
-        return { error: error.message };
-      }
-    },
+    ({ body }) => authController.signup(body),
     {
       body: t.Object({
         email: t.String({ format: 'email' }),
@@ -25,22 +16,12 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       detail: {
         summary: 'Register a new user',
         tags: ['Auth'],
-        description: 'Create a new user account. Default role is ATTENDEE. Sends welcome email via Ethereal.',
       },
     }
   )
   .post(
     '/login',
-    async ({ body, set }) => {
-      try {
-        const result = await authController.login(body);
-        set.status = 200;
-        return result;
-      } catch (error: any) {
-        set.status = 401;
-        return { error: error.message };
-      }
-    },
+    ({ body }) => authController.login(body),
     {
       body: t.Object({
         email: t.String({ format: 'email' }),
@@ -49,27 +30,17 @@ export const authRoutes = new Elysia({ prefix: '/auth' })
       detail: {
         summary: 'Login user',
         tags: ['Auth'],
-        description: 'Authenticate user and receive JWT token.',
       },
     }
   )
+  .use(requireAuth)
   .get(
     '/profile',
-    async ({ request, set }) => {
-      try {
-        const user = requireAuth({ request } as any);
-        const profile = await authController.getProfile(user.userId);
-        return profile;
-      } catch (error: any) {
-        set.status = 401;
-        return { error: error.message };
-      }
-    },
+    ({ user }) => authController.getProfile(user.userId),
     {
       detail: {
         summary: 'Get current user profile',
         tags: ['Auth'],
-        description: 'Get authenticated user information. Requires Bearer token.',
       },
     }
   );

@@ -4,6 +4,9 @@ import { cors } from '@elysiajs/cors';
 import { authRoutes } from './routes/auth.routes';
 import { eventRoutes } from './routes/event.routes';
 import wsService from './services/websocket.service';
+import { verifyToken } from './utils/jwt.utils';
+import { User } from '@prisma/client';
+import { ApiError } from './utils/errors';
 
 const PORT = process.env.PORT || 3000;
 
@@ -55,49 +58,65 @@ const app = new Elysia()
     wsConnections: wsService.getConnectionCount(),
   }))
   .ws('/ws', {
-    open(ws) {
-      console.log('🔌 WebSocket connection opened');
-      wsService.addConnection(ws);
-      ws.send(
-        JSON.stringify({
-          type: 'CONNECTED',
-          message: 'Successfully connected to Event Management WebSocket',
-          timestamp: new Date().toISOString(),
-        })
-      );
-    },
-    message(ws, message) {
-      console.log('📨 Received message:', message);
-      ws.send(
-        JSON.stringify({
-          type: 'ECHO',
-          payload: message,
-          timestamp: new Date().toISOString(),
-        })
-      );
+    async open(ws) {
+      const { token } = ws.data.query;
+
+      if (!token) {
+        console.log('🔌 WebSocket connection rejected: No token provided.');
+        ws.close(4001, 'Unauthorized: Token not provided');
+        return;
+      }
+
+      try {
+        const user = await verifyToken(token as string);
+        if (!user) {
+            ws.close(4001, 'Unauthorized: Invalid token');
+            return;
+        }
+        ws.data.user = user as User;
+        wsService.addConnection(ws);
+        console.log(`🔌 WebSocket connection opened for user: ${user.email}`);
+        ws.send(
+          JSON.stringify({
+            type: 'CONNECTED',
+            message: 'Successfully connected to Event Management WebSocket',
+            timestamp: new Date().toISOString(),
+          })
+        );
+      } catch (error) {
+        console.log('🔌 WebSocket connection rejected: Invalid token.', error);
+        ws.close(4001, 'Unauthorized: Invalid token');
+      }
     },
     close(ws) {
-      console.log('🔌 WebSocket connection closed');
-      wsService.removeConnection(ws);
+        if (ws.data.user) {
+            console.log(`🔌 WebSocket connection closed for user: ${ws.data.user.email}`);
+        }
+        wsService.removeConnection(ws);
     },
   })
   .use(authRoutes)
   .use(eventRoutes)
   .onError(({ code, error, set }) => {
+    if (error instanceof ApiError) {
+      set.status = error.status;
+      return { error: error.message };
+    }
+
     console.error('Error:', error);
 
-    if (code === 'VALIDATION') {
-      set.status = 400;
-      return { error: 'Validation error', details: error.message };
+    switch (code) {
+      case 'VALIDATION':
+        set.status = 400;
+        return { error: 'Validation error', details: error.message };
+      case 'NOT_FOUND':
+        set.status = 404;
+        return { error: 'Route not found' };
+      case 'INTERNAL_SERVER_ERROR':
+      default:
+        set.status = 500;
+        return { error: 'Internal server error', message: error.message };
     }
-
-    if (code === 'NOT_FOUND') {
-      set.status = 404;
-      return { error: 'Route not found' };
-    }
-
-    set.status = 500;
-    return { error: 'Internal server error', message: error.message };
   })
   .listen(PORT);
 

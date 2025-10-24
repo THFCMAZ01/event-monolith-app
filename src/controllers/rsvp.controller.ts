@@ -1,5 +1,6 @@
 import { PrismaClient, RSVPStatus } from '@prisma/client';
 import wsService from '../services/websocket.service';
+import { ApiError } from '../utils/errors';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +11,7 @@ export class RSVPController {
     status: RSVPStatus
   ): Promise<any> {
     if (!Object.values(RSVPStatus).includes(status)) {
-      throw new Error('Invalid RSVP status');
+      throw new ApiError(400, 'Invalid RSVP status');
     }
 
     const event = await prisma.event.findUnique({
@@ -25,11 +26,11 @@ export class RSVPController {
     });
 
     if (!event) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     if (!event.approved) {
-      throw new Error('Cannot RSVP to unapproved event');
+      throw new ApiError(400, 'Cannot RSVP to unapproved event');
     }
 
     const rsvp = await prisma.rsvp.upsert({
@@ -123,7 +124,7 @@ export class RSVPController {
     });
 
     if (!existingRSVP) {
-      throw new Error('RSVP not found');
+      throw new ApiError(404, 'RSVP not found');
     }
 
     await prisma.rsvp.delete({

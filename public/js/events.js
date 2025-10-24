@@ -171,7 +171,7 @@ export async function rsvpEvent(eventId, status) {
 
         const data = await response.json();
 
-        if (response.ok) {
+        if (.ok) {
             showNotification(`RSVP updated to ${status}!`, 'success');
             loadEvents();
         } else {
@@ -189,3 +189,9 @@ export function filterEvents(searchTerm) {
     );
     displayEvents(filteredEvents, currentUser);
 }
+
+window.createEvent = createEvent;
+window.approveEvent = approveEvent;
+window.deleteEvent = deleteEvent;
+window.rsvpEvent = rsvpEvent;
+window.filterEvents = filterEvents;

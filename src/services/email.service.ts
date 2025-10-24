@@ -37,14 +37,14 @@ class EmailService {
             <p>You can now log in and start managing events!</p>
             <hr>
             <p style="color: #666; font-size: 12px;">
-              This is a mock email sent via Ethereal. Preview at: 
-              <a href="${nodemailer.getTestMessageUrl(info)}">View Email</a>
+              This is a mock email sent via Ethereal.
             </p>
           </div>
         `,
       });
 
-      console.log('✉️  Welcome email sent:', nodemailer.getTestMessageUrl(info));
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log('✉️  Welcome email sent. Preview:', previewUrl);
     } catch (error) {
       console.error('Failed to send welcome email:', error);
     }
@@ -66,13 +66,14 @@ class EmailService {
             <p>${message}</p>
             <hr>
             <p style="color: #666; font-size: 12px;">
-              Preview at: <a href="${nodemailer.getTestMessageUrl(info)}">View Email</a>
+              Mock email via Ethereal
             </p>
           </div>
         `,
       });
 
-      console.log('✉️  Event notification sent:', nodemailer.getTestMessageUrl(info));
+      const previewUrl = nodemailer.getTestMessageUrl(info);
+      console.log('✉️  Event notification sent. Preview:', previewUrl);
     } catch (error) {
       console.error('Failed to send event notification:', error);
     }

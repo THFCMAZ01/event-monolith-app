@@ -200,8 +200,7 @@
         }
 
         .status-approved {
-            background: #d1fae5;
-            color: #065f46;
+                     color: #065f46;
         }
 
         .status-pending {
@@ -408,43 +407,36 @@
             loadEvents();
         });
 
- function connectWebSocket() {
-    // Close existing connection if any
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-    }
+        // WebSocket Connection
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
 
-    ws = new WebSocket(WS_URL);
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('wsStatus').classList.add('connected');
+                document.getElementById('wsText').textContent = 'Connected';
+                showNotification('WebSocket connected!', 'success');
+            };
 
-    ws.onopen = () => {
-        console.log('✅ WebSocket connected');
-        document.getElementById('wsStatus').classList.add('connected');
-        document.getElementById('wsText').textContent = 'Connected';
-    };
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message:', data);
+                handleWebSocketMessage(data);
+            };
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('📨 WebSocket message:', data);
-        handleWebSocketMessage(data);
-    };
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showNotification('WebSocket error', 'error');
+            };
 
-    ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-    };
-
-    ws.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
-        document.getElementById('wsStatus').classList.remove('connected');
-        document.getElementById('wsText').textContent = 'Disconnected';
-        
-        // Don't auto-reconnect if page is closing
-        if (document.visibilityState === 'visible') {
-            console.log('⏳ Reconnecting in 3 seconds...');
-            setTimeout(connectWebSocket, 3000);
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('wsStatus').classList.remove('connected');
+                document.getElementById('wsText').textContent = 'Disconnected';
+                setTimeout(connectWebSocket, 3000);
+            };
         }
-    };
-}
-                
+
         function handleWebSocketMessage(data) {
             switch(data.type) {
                 case 'EVENT_CREATED':
@@ -628,49 +620,45 @@
             `).join('');
         }
 
-async function createEvent() {
-    const title = document.getElementById('eventTitle').value;
-    const description = document.getElementById('eventDescription').value;
-    const date = document.getElementById('eventDate').value;
-    const location = document.getElementById('eventLocation').value;
+        async function createEvent() {
+            const title = document.getElementById('eventTitle').value;
+            const description = document.getElementById('eventDescription').value;
+            const date = document.getElementById('eventDate').value;
+            const location = document.getElementById('eventLocation').value;
 
-    console.log(' Creating event:', { title, description, date, location });
+            if (!title || !description || !date || !location) {
+                showNotification('Please fill all fields', 'error');
+                return;
+            }
 
-    if (!title || !description || !date || !location) {
-        showNotification('Please fill all fields', 'error');
-        return;
-    }
+            try {
+                const response = await fetch(`${API_URL}/events`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title,
+                        description,
+                        date: new Date(date).toISOString(),
+                        location
+                    })
+                });
 
-    try {
-        const response = await fetch(`${API_URL}/events`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                title,
-                description,
-                date: new Date(date).toISOString(),
-                location
-            })
-        });
+                const data = await response.json();
 
-        const data = await response.json();
-        console.log(' Response:', data);
-
-        if (response.ok) {
-            showNotification('Event created! Awaiting admin approval.', 'success');
-            closeCreateModal();
-            loadEvents();
-        } else {
-            showNotification(data.error || 'Failed to create event', 'error');
+                if (response.ok) {
+                    showNotification('Event created! Awaiting admin approval.', 'success');
+                    closeCreateModal();
+                    loadEvents();
+                } else {
+                    showNotification(data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to create event: ' + error.message, 'error');
+            }
         }
-    } catch (error) {
-        console.error(' Create event error:', error);
-        showNotification('Failed to create event: ' + error.message, 'error');
-    }
-}
 
         async function approveEvent(eventId) {
             if (!confirm('Approve this event?')) return;

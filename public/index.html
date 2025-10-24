@@ -221,6 +221,10 @@
             flex-wrap: wrap;
         }
 
+        .event-actions button {
+            margin-right: 0;
+        }
+
         .hidden {
             display: none;
         }
@@ -311,7 +315,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>Event Management System</h1>
             <p>Real-time event management with WebSocket updates</p>
@@ -326,7 +329,6 @@
             </div>
         </div>
 
-        <!-- Auth Section -->
         <div class="auth-section" id="authSection">
             <h2>Login / Signup</h2>
             <div class="form-group">
@@ -349,7 +351,6 @@
             <button class="btn-secondary" onclick="signup()">Signup</button>
         </div>
 
-        <!-- Logged In Section -->
         <div class="auth-section hidden" id="loggedInSection">
             <div class="user-info">
                 <strong>Logged in as:</strong> <span id="userEmail"></span> (<span id="currentRole"></span>)
@@ -358,7 +359,6 @@
             <button class="btn-secondary hidden" onclick="openCreateModal()" id="createEventBtn">Create Event</button>
         </div>
 
-        <!-- Events Section -->
         <div class="events-section">
             <h2>Events</h2>
             <button class="btn-secondary" onclick="loadEvents()" style="margin-bottom: 15px;">Refresh Events</button>
@@ -366,7 +366,6 @@
         </div>
     </div>
 
-    <!-- Create Event Modal -->
     <div class="modal" id="createModal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeCreateModal()">&times;</span>
@@ -387,7 +386,7 @@
                 <label>Location</label>
                 <input type="text" id="eventLocation" placeholder="Tech Hub Downtown">
             </div>
-            <button onclick="createEvent()">Create Event</button>
+            <button onclick="submitCreateEvent()">Create Event</button>
             <button class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
         </div>
     </div>
@@ -399,7 +398,6 @@
         let currentUser = null;
         let ws = null;
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             if (token) {
                 loadProfile();
@@ -408,43 +406,39 @@
             loadEvents();
         });
 
- function connectWebSocket() {
-    // Close existing connection if any
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.close();
-    }
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
 
-    ws = new WebSocket(WS_URL);
+            ws = new WebSocket(WS_URL);
 
-    ws.onopen = () => {
-        console.log('✅ WebSocket connected');
-        document.getElementById('wsStatus').classList.add('connected');
-        document.getElementById('wsText').textContent = 'Connected';
-    };
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('wsStatus').classList.add('connected');
+                document.getElementById('wsText').textContent = 'Connected';
+            };
 
-    ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log('📨 WebSocket message:', data);
-        handleWebSocketMessage(data);
-    };
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('WebSocket message:', data);
+                handleWebSocketMessage(data);
+            };
 
-    ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-    };
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
 
-    ws.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
-        document.getElementById('wsStatus').classList.remove('connected');
-        document.getElementById('wsText').textContent = 'Disconnected';
-        
-        // Don't auto-reconnect if page is closing
-        if (document.visibilityState === 'visible') {
-            console.log('⏳ Reconnecting in 3 seconds...');
-            setTimeout(connectWebSocket, 3000);
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('wsStatus').classList.remove('connected');
+                document.getElementById('wsText').textContent = 'Disconnected';
+                if (document.visibilityState === 'visible') {
+                    setTimeout(connectWebSocket, 3000);
+                }
+            };
         }
-    };
-}
-                
+
         function handleWebSocketMessage(data) {
             switch(data.type) {
                 case 'EVENT_CREATED':
@@ -471,7 +465,6 @@
             }
         }
 
-        // Auth Functions
         async function signup() {
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
@@ -565,7 +558,6 @@
             }
         }
 
-        // Event Functions
         async function loadEvents() {
             if (!token) return;
 
@@ -628,49 +620,45 @@
             `).join('');
         }
 
-async function createEvent() {
-    const title = document.getElementById('eventTitle').value;
-    const description = document.getElementById('eventDescription').value;
-    const date = document.getElementById('eventDate').value;
-    const location = document.getElementById('eventLocation').value;
+        async function submitCreateEvent() {
+            const title = document.getElementById('eventTitle').value;
+            const description = document.getElementById('eventDescription').value;
+            const date = document.getElementById('eventDate').value;
+            const location = document.getElementById('eventLocation').value;
 
-    console.log(' Creating event:', { title, description, date, location });
+            if (!title || !description || !date || !location) {
+                showNotification('Please fill all fields', 'error');
+                return;
+            }
 
-    if (!title || !description || !date || !location) {
-        showNotification('Please fill all fields', 'error');
-        return;
-    }
+            try {
+                const response = await fetch(`${API_URL}/events`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title,
+                        description,
+                        date: new Date(date).toISOString(),
+                        location
+                    })
+                });
 
-    try {
-        const response = await fetch(`${API_URL}/events`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                title,
-                description,
-                date: new Date(date).toISOString(),
-                location
-            })
-        });
+                const data = await response.json();
 
-        const data = await response.json();
-        console.log(' Response:', data);
-
-        if (response.ok) {
-            showNotification('Event created! Awaiting admin approval.', 'success');
-            closeCreateModal();
-            loadEvents();
-        } else {
-            showNotification(data.error || 'Failed to create event', 'error');
+                if (response.ok) {
+                    showNotification('Event created! Awaiting admin approval.', 'success');
+                    closeCreateModal();
+                    loadEvents();
+                } else {
+                    showNotification(data.error, 'error');
+                }
+            } catch (error) {
+                showNotification('Failed to create event: ' + error.message, 'error');
+            }
         }
-    } catch (error) {
-        console.error(' Create event error:', error);
-        showNotification('Failed to create event: ' + error.message, 'error');
-    }
-}
 
         async function approveEvent(eventId) {
             if (!confirm('Approve this event?')) return;
@@ -740,7 +728,6 @@ async function createEvent() {
             }
         }
 
-        // Modal Functions
         function openCreateModal() {
             document.getElementById('createModal').classList.add('active');
             const tomorrow = new Date();
@@ -756,7 +743,6 @@ async function createEvent() {
             document.getElementById('eventLocation').value = '';
         }
 
-        // Notification System
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;

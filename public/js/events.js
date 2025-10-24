@@ -18,7 +18,8 @@ export async function loadEvents() {
 
         if (response.ok) {
             allEvents = data;
-            displayEvents(allEvents);
+            const currentUser = getCurrentUser();
+            displayEvents(allEvents, currentUser);
         } else {
             showNotification('Failed to load events', 'error');
         }
@@ -27,9 +28,8 @@ export async function loadEvents() {
     }
 }
 
-export function displayEvents(events) {
+export function displayEvents(events, currentUser) {
     const container = document.getElementById('eventsList');
-    const currentUser = getCurrentUser();
     
     if (events.length === 0) {
         container.innerHTML = '<p style="color: #6b7280;">No events available yet.</p>';
@@ -183,8 +183,9 @@ export async function rsvpEvent(eventId, status) {
 }
 
 export function filterEvents(searchTerm) {
+    const currentUser = getCurrentUser();
     const filteredEvents = allEvents.filter(event => 
         event.title.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    displayEvents(filteredEvents);
+    displayEvents(filteredEvents, currentUser);
 }

@@ -88,6 +88,9 @@ const app = new Elysia()
         ws.close(4001, 'Unauthorized: Invalid token');
       }
     },
+    message(ws, message) {
+      console.log('Received message:', message);
+    },
     close(ws) {
         if (ws.data.user) {
             console.log(`🔌 WebSocket connection closed for user: ${ws.data.user.email}`);

@@ -5,11 +5,27 @@ import { WS_URL } from './main.js';
 import { getToken } from './auth.js';
 
 let ws = null;
-let reconnectTimeout = null;
+let reconnectAttempts = 0;
+let reconnectTimeoutId = null;
+const MAX_RECONNECT_DELAY = 30000;
+const INITIAL_RECONNECT_DELAY = 1000;
+
+// Debounce function to limit how often a function can run
+function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
+// Create a debounced version of loadEvents to prevent rapid reloads
+const debouncedLoadEvents = debounce(loadEvents, 500);
 
 function connect() {
     const token = getToken();
-    if (!token || (ws && ws.readyState === WebSocket.OPEN)) {
+    if (!token || ws) {
         return;
     }
 
@@ -19,9 +35,10 @@ function connect() {
         console.log('WebSocket connected');
         document.getElementById('wsStatus').classList.add('connected');
         document.getElementById('wsText').textContent = 'Connected';
-        if (reconnectTimeout) {
-            clearTimeout(reconnectTimeout);
-            reconnectTimeout = null;
+        reconnectAttempts = 0;
+        if (reconnectTimeoutId) {
+            clearTimeout(reconnectTimeoutId);
+            reconnectTimeoutId = null;
         }
     };
 
@@ -38,32 +55,48 @@ function connect() {
     ws.onclose = () => {
         console.log('WebSocket disconnected');
         document.getElementById('wsStatus').classList.remove('connected');
-        document.getElementById('wsText').textContent = 'Disconnected';
+        document.getElementById('wsText').textContent = 'Reconnecting...';
         ws = null;
-        if (!reconnectTimeout) {
-            reconnectTimeout = setTimeout(connect, 3000);
-        }
+
+        const reconnectDelay = Math.min(
+            INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts),
+            MAX_RECONNECT_DELAY
+        );
+        console.log(`Will try to reconnect in ${reconnectDelay / 1000}s`);
+
+        reconnectAttempts++;
+        reconnectTimeoutId = setTimeout(connect, reconnectDelay);
     };
 }
 
 export function connectWebSocket() {
+    // Clear any previous lingering timeouts
+    if (reconnectTimeoutId) {
+        clearTimeout(reconnectTimeoutId);
+        reconnectTimeoutId = null;
+    }
+    reconnectAttempts = 0;
     connect();
 }
 
 export function disconnectWebSocket() {
-    if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-        reconnectTimeout = null;
+    if (reconnectTimeoutId) {
+        clearTimeout(reconnectTimeoutId);
+        reconnectTimeoutId = null;
     }
     if (ws) {
+        // Prevent the automatic reconnection logic from firing upon manual disconnection.
+        ws.onclose = null; 
         ws.close();
         ws = null;
     }
     document.getElementById('wsStatus').classList.remove('connected');
     document.getElementById('wsText').textContent = 'Disconnected';
+    reconnectAttempts = 0; // Reset for good measure
 }
 
 function handleWebSocketMessage(data) {
     showNotification(`[WS] ${data.message}`, data.type.endsWith('_ERROR') ? 'error' : 'info');
-    loadEvents();
+    // Use the debounced function to avoid flooding the server with requests
+    debouncedLoadEvents();
 }

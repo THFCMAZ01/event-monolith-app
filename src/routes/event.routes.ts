@@ -19,7 +19,7 @@ export const eventRoutes = new Elysia({ prefix: '/events' })
     .group('/admin', (app) =>
         app
             .use(requireAdmin)
-            .get('/all', () => eventController.getAllEventsAdmin(), {
+            .get('/all', () => eventController.getAllEvents(true), {
                 detail: {
                     summary: 'Get all events (admin only)',
                     tags: ['Events'],
@@ -42,7 +42,7 @@ export const eventRoutes = new Elysia({ prefix: '/events' })
                 body: t.Object({
                     title: t.String({ minLength: 1 }),
                     description: t.String({ minLength: 1 }),
-                    date: t.String(), 
+                    date: t.Date(), 
                     location: t.String({ minLength: 1 }),
                 }),
                 detail: {
@@ -57,7 +57,7 @@ export const eventRoutes = new Elysia({ prefix: '/events' })
                 body: t.Object({
                     title: t.Optional(t.String({ minLength: 1 })),
                     description: t.Optional(t.String({ minLength: 1 })),
-                    date: t.Optional(t.String()),
+                    date: t.Optional(t.Date()),
                     location: t.Optional(t.String({ minLength: 1 })),
                 }),
                 detail: {

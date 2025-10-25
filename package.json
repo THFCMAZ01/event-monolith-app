@@ -4,13 +4,14 @@
   "description": "Real-time event management system with authentication and role-based access",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir ./dist --target bun",
+    "dev": "tsx watch src/index.ts",
+    "start": "node src/index.ts",
+    "build": "tsc",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:push": "prisma db push"
+    "prisma:push": "prisma db push",
+    "test": "vitest run"
   },
   "keywords": [
     "elysia",
@@ -30,6 +31,7 @@
     "elysia": "^1.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.10",
+    "tsx": "^4.20.6",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -37,6 +39,8 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/nodemailer": "^6.4.15",
     "bun-types": "latest",
-    "prisma": "^5.18.0"
+    "prisma": "^5.22.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.0"
   }
 }

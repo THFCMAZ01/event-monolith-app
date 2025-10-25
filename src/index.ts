@@ -121,18 +121,19 @@ const app = new Elysia()
         return { error: 'Internal server error', message: error.message };
     }
   })
-  .listen(PORT);
 
-console.log(`
-╔═══════════════════════════════════════════════════════════╗
-║                                                           ║
-║   🎉 Event Management API Server Running                 ║
-║                                                           ║
-║   🌐 Server:     http://localhost:${PORT}                   ║
-║   📚 Swagger:    http://localhost:${PORT}/swagger           ║
-║   🔌 WebSocket:  ws://localhost:${PORT}/ws                  ║
-║                                                           ║
-╚═══════════════════════════════════════════════════════════╝
-`);
+  console.log(`
+  ╔═══════════════════════════════════════════════════════════╗
+  ║                                                           ║
+  ║   🎉 Event Management API Server Running                 ║
+  ║                                                           ║
+  ║   🌐 Server:     http://localhost:${PORT}                   ║
+  ║   📚 Swagger:    http://localhost:${PORT}/swagger           ║
+  ║   🔌 WebSocket:  ws://localhost:${PORT}/ws                  ║
+  ║                                                           ║
+  ╚═══════════════════════════════════════════════════════════╝
+  `);
+
+  app.start();
 
 export type App = typeof app;

@@ -2,6 +2,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { generateToken } from '../utils/jwt.utils';
 import emailService from '../services/email.service';
+import { ApiError } from '../utils/errors';
 
 const prisma = new PrismaClient();
 
@@ -14,11 +15,11 @@ export class AuthController {
     const { email, password, role = UserRole.ATTENDEE } = data;
 
     if (!email || !password) {
-      throw new Error('Email and password are required');
+      throw new ApiError(400, 'Email and password are required');
     }
 
     if (password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
+      throw new ApiError(400, 'Password must be at least 6 characters');
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -26,7 +27,7 @@ export class AuthController {
     });
 
     if (existingUser) {
-      throw new Error('User with this email already exists');
+      throw new ApiError(409, 'User with this email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -67,7 +68,7 @@ export class AuthController {
     const { email, password } = data;
 
     if (!email || !password) {
-      throw new Error('Email and password are required');
+      throw new ApiError(400, 'Email and password are required');
     }
 
     const user = await prisma.user.findUnique({
@@ -75,12 +76,12 @@ export class AuthController {
     });
 
     if (!user) {
-      throw new Error('Invalid email or password');
+      throw new ApiError(401, 'Invalid email or password');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new Error('Invalid email or password');
+      throw new ApiError(401, 'Invalid email or password');
     }
 
     const token = generateToken({
@@ -119,7 +120,7 @@ export class AuthController {
     });
 
     if (!user) {
-      throw new Error('User not found');
+      throw new ApiError(404, 'User not found');
     }
 
     return user;

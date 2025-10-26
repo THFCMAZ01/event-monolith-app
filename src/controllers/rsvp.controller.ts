@@ -1,5 +1,6 @@
 import { PrismaClient, RSVPStatus } from '@prisma/client';
 import wsService from '../services/websocket.service';
+import { ApiError } from '../utils/errors';
 
 const prisma = new PrismaClient();
 
@@ -10,7 +11,7 @@ export class RSVPController {
     status: RSVPStatus
   ): Promise<any> {
     if (!Object.values(RSVPStatus).includes(status)) {
-      throw new Error('Invalid RSVP status');
+      throw new ApiError(400, 'Invalid RSVP status');
     }
 
     const event = await prisma.event.findUnique({
@@ -25,56 +26,81 @@ export class RSVPController {
     });
 
     if (!event) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     if (!event.approved) {
-      throw new Error('Cannot RSVP to unapproved event');
+      throw new ApiError(400, 'Cannot RSVP to unapproved event');
     }
 
-    const rsvp = await prisma.rsvp.upsert({
-      where: {
-        userId_eventId: {
-          userId,
-          eventId,
-        },
-      },
-      update: {
-        status,
-      },
-      create: {
-        userId,
-        eventId,
-        status,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
+    const existingRsvp = await prisma.rSVP.findUnique({
+        where: {
+          userId_eventId: {
+            userId,
+            eventId,
           },
         },
-        event: {
-          select: {
-            id: true,
-            title: true,
-            date: true,
+      });
+  
+      if (existingRsvp) {
+        const updatedRsvp = await prisma.rSVP.update({
+          where: {
+            userId_eventId: {
+              userId,
+              eventId,
+            },
           },
-        },
-      },
-    });
-
-    if (rsvp.createdAt.getTime() === new Date().getTime()) {
-      wsService.notifyRSVPCreated(rsvp);
-    } else {
-      wsService.notifyRSVPUpdated(rsvp);
-    }
-
-    return rsvp;
+          data: {
+            status,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+              },
+            },
+            event: {
+              select: {
+                id: true,
+                title: true,
+                date: true,
+              },
+            },
+          },
+        });
+        wsService.notifyRSVPUpdated(updatedRsvp);
+        return updatedRsvp;
+      } else {
+        const newRsvp = await prisma.rSVP.create({
+            data: {
+              userId,
+              eventId,
+              status,
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                },
+              },
+              event: {
+                select: {
+                  id: true,
+                  title: true,
+                  date: true,
+                },
+              },
+            },
+          });
+          wsService.notifyRSVPCreated(newRsvp);
+          return newRsvp;
+      }
   }
 
   async getRSVPsForEvent(eventId: string): Promise<any[]> {
-    const rsvps = await prisma.rsvp.findMany({
+    const rsvps = await prisma.rSVP.findMany({
       where: { eventId },
       include: {
         user: {
@@ -92,7 +118,7 @@ export class RSVPController {
   }
 
   async getRSVPsForUser(userId: string): Promise<any[]> {
-    const rsvps = await prisma.rsvp.findMany({
+    const rsvps = await prisma.rSVP.findMany({
       where: { userId },
       include: {
         event: {
@@ -113,7 +139,7 @@ export class RSVPController {
   }
 
   async deleteRSVP(userId: string, eventId: string): Promise<{ message: string }> {
-    const existingRSVP = await prisma.rsvp.findUnique({
+    const existingRSVP = await prisma.rSVP.findUnique({
       where: {
         userId_eventId: {
           userId,
@@ -123,10 +149,10 @@ export class RSVPController {
     });
 
     if (!existingRSVP) {
-      throw new Error('RSVP not found');
+      throw new ApiError(404, 'RSVP not found');
     }
 
-    await prisma.rsvp.delete({
+    await prisma.rSVP.delete({
       where: {
         userId_eventId: {
           userId,

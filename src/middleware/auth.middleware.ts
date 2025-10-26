@@ -1,47 +1,45 @@
-import { Context } from 'elysia';
+import { Elysia, type Context } from 'elysia';
 import { UserRole } from '@prisma/client';
-import { extractToken, verifyToken, JWTPayload } from '../utils/jwt.utils';
+import { verifyToken, type JWTPayload } from '../utils/jwt.utils';
+import { ApiError } from '../utils/errors';
 
-export interface AuthContext extends Context {
-  user: JWTPayload;
-}
+export const isAuthenticated = (app: Elysia) =>
+  app.derive(async ({ cookie, headers }) => {
+    const auth = headers.authorization;
+    let token: string | undefined;
 
-export function authenticateUser(context: Context): JWTPayload {
-  const authHeader = context.request.headers.get('Authorization');
-  const token = extractToken(authHeader);
-
-  if (!token) {
-    throw new Error('No authentication token provided');
-  }
-
-  const payload = verifyToken(token);
-  if (!payload) {
-    throw new Error('Invalid or expired token');
-  }
-
-  return payload;
-}
-
-export function requireRole(allowedRoles: UserRole[]) {
-  return (context: Context) => {
-    const user = authenticateUser(context);
-    
-    if (!allowedRoles.includes(user.role)) {
-      throw new Error(`Access denied. Required role: ${allowedRoles.join(' or ')}`);
+    if (auth && auth.startsWith('Bearer ')) {
+      token = auth.slice(7);
+    } else if (cookie && cookie.auth) {
+      // cookie.auth.value may be unknown per types; coerce to string
+      token = String((cookie.auth as any).value);
     }
 
-    return user;
-  };
-}
+    if (!token) {
+      throw new ApiError(401, 'Unauthorized: No token provided');
+    }
 
-export function requireAdmin(context: Context): JWTPayload {
-  return requireRole([UserRole.ADMIN])(context);
-}
+    try {
+      const user = await verifyToken(token);
+      if (!user) {
+        throw new ApiError(401, 'Unauthorized: Invalid token');
+      }
+      return { user, isAuthenticated: true };
+    } catch (error) {
+      throw new ApiError(401, 'Unauthorized: Invalid token');
+    }
+  });
 
-export function requireOrganizerOrAdmin(context: Context): JWTPayload {
-  return requireRole([UserRole.ORGANIZER, UserRole.ADMIN])(context);
-}
+export const requireRole = (allowedRoles: UserRole[]) => (app: Elysia) =>
+  app.use(isAuthenticated).guard({
+    beforeHandle(ctx: any) {
+      const user = (ctx as any).user;
+      if (!user || !allowedRoles.includes(user.role)) {
+        throw new ApiError(403, `Access denied. Required role: ${allowedRoles.join(' or ')}`);
+      }
+    },
+  });
 
-export function requireAuth(context: Context): JWTPayload {
-  return authenticateUser(context);
-}
+export const requireAuth = new Elysia().use(isAuthenticated);
+export const requireAdmin = requireRole([UserRole.ADMIN]);
+export const requireOrganizerOrAdmin = requireRole([UserRole.ORGANIZER, UserRole.ADMIN]);

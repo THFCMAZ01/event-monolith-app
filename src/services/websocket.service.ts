@@ -1,10 +1,35 @@
 import { ServerWebSocket } from 'bun';
 
+interface WebSocketClient extends ServerWebSocket<any> {
+  isAlive: boolean;
+  heartbeatInterval?: NodeJS.Timeout;
+}
+
 class WebSocketService {
   private static instance: WebSocketService;
-  private connections: Set<ServerWebSocket<any>> = new Set();
+  private connections: Set<WebSocketClient> = new Set();
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
-  private constructor() {}
+  private constructor() {
+    this.startHeartbeat();
+  }
+
+  private startHeartbeat(): void {
+    this.heartbeatInterval = setInterval(() => {
+      this.connections.forEach((ws) => {
+        if (!ws.isAlive) {
+          this.removeConnection(ws);
+          return;
+        }
+        ws.isAlive = false;
+        try {
+          ws.ping();
+        } catch (error) {
+          this.removeConnection(ws);
+        }
+      });
+    }, 30000); // Check every 30 seconds
+  }
 
   public static getInstance(): WebSocketService {
     if (!WebSocketService.instance) {
@@ -14,12 +39,19 @@ class WebSocketService {
   }
 
   addConnection(ws: ServerWebSocket<any>): void {
-    this.connections.add(ws);
+    const client = ws as WebSocketClient;
+    client.isAlive = true;
+    this.connections.add(client);
     console.log(`✓ WebSocket connected. Total connections: ${this.connections.size}`);
   }
 
-  removeConnection(ws: ServerWebSocket<any>): void {
-    this.connections.delete(ws);
+  removeConnection(ws: ServerWebSocket<any> | WebSocketClient): void {
+    const client = ws as WebSocketClient;
+    if (client.heartbeatInterval) {
+      clearTimeout(client.heartbeatInterval);
+      client.heartbeatInterval = undefined;
+    }
+    this.connections.delete(client);
     console.log(`✗ WebSocket disconnected. Total connections: ${this.connections.size}`);
   }
 

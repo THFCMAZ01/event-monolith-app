@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -361,6 +362,9 @@
 
         <div class="events-section">
             <h2>Events</h2>
+            <div class="form-group">
+                <input type="text" id="eventSearch" placeholder="Search for events by title...">
+            </div>
             <button class="btn-secondary" onclick="loadEvents()" style="margin-bottom: 15px;">Refresh Events</button>
             <div id="eventsList"></div>
         </div>
@@ -386,7 +390,7 @@
                 <label>Location</label>
                 <input type="text" id="eventLocation" placeholder="Tech Hub Downtown">
             </div>
-            <button onclick="submitCreateEvent()">Create Event</button>
+            <button onclick="createEvent()">Create Event</button>
             <button class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
         </div>
     </div>
@@ -398,6 +402,7 @@
         let currentUser = null;
         let ws = null;
 
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             if (token) {
                 loadProfile();
@@ -406,17 +411,15 @@
             loadEvents();
         });
 
+        // WebSocket Connection
         function connectWebSocket() {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.close();
-            }
-
             ws = new WebSocket(WS_URL);
 
             ws.onopen = () => {
                 console.log('WebSocket connected');
                 document.getElementById('wsStatus').classList.add('connected');
                 document.getElementById('wsText').textContent = 'Connected';
+                showNotification('WebSocket connected!', 'success');
             };
 
             ws.onmessage = (event) => {
@@ -427,15 +430,14 @@
 
             ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
+                showNotification('WebSocket error', 'error');
             };
 
             ws.onclose = () => {
                 console.log('WebSocket disconnected');
                 document.getElementById('wsStatus').classList.remove('connected');
                 document.getElementById('wsText').textContent = 'Disconnected';
-                if (document.visibilityState === 'visible') {
-                    setTimeout(connectWebSocket, 3000);
-                }
+                setTimeout(connectWebSocket, 3000);
             };
         }
 
@@ -465,6 +467,7 @@
             }
         }
 
+        // Auth Functions
         async function signup() {
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
@@ -558,6 +561,7 @@
             }
         }
 
+        // Event Functions
         async function loadEvents() {
             if (!token) return;
 
@@ -620,7 +624,7 @@
             `).join('');
         }
 
-        async function submitCreateEvent() {
+        async function createEvent() {
             const title = document.getElementById('eventTitle').value;
             const description = document.getElementById('eventDescription').value;
             const date = document.getElementById('eventDate').value;
@@ -728,6 +732,7 @@
             }
         }
 
+        // Modal Functions
         function openCreateModal() {
             document.getElementById('createModal').classList.add('active');
             const tomorrow = new Date();
@@ -743,6 +748,7 @@
             document.getElementById('eventLocation').value = '';
         }
 
+        // Notification System
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;

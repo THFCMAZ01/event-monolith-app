@@ -40,7 +40,7 @@ model Event {
   approved    Boolean   @default(false)
   createdAt   DateTime  @default(now())
 
-  organizer   User      @relation("EventOrganizer", fields: [organizerId], references: [id])
+  organizer   User      @relation("EventOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
   rsvps       RSVP[]
 }
 
@@ -50,9 +50,10 @@ model RSVP {
   eventId   String
   status    RSVPStatus
   createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 
   user      User        @relation(fields: [userId], references: [id])
-  event     Event       @relation(fields: [eventId], references: [id])
+  event     Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@unique([userId, eventId])
 }

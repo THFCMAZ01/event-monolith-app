@@ -1,33 +1,15 @@
+
 import { PrismaClient, UserRole } from '@prisma/client';
 import wsService from '../services/websocket.service';
 import emailService from '../services/email.service';
+import { ApiError } from '../utils/errors';
 
 const prisma = new PrismaClient();
 
 export class EventController {
-  async getAllEvents(): Promise<any[]> {
+  async getAllEvents(isAdmin: boolean = false): Promise<any[]> {
     const events = await prisma.event.findMany({
-      where: { approved: true },
-      include: {
-        organizer: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
-        },
-        _count: {
-          select: { rsvps: true },
-        },
-      },
-      orderBy: { date: 'asc' },
-    });
-
-    return events;
-  }
-
-  async getAllEventsAdmin(): Promise<any[]> {
-    const events = await prisma.event.findMany({
+      where: isAdmin ? {} : { approved: true },
       include: {
         organizer: {
           select: {
@@ -71,44 +53,32 @@ export class EventController {
     });
 
     if (!event) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     return event;
   }
 
-  async createEvent(
-    userId: string,
-    data: {
-      title: string;
-      description: string;
-      date: string;
-      location: string;
-    }
-  ): Promise<any> {
-    const { title, description, date, location } = data;
-
-    if (!title || !description || !date || !location) {
-      throw new Error('All fields are required');
+  async createEvent(userId: string, data: { title: string; description: string; date: Date; location: string; }): Promise<any> {
+    if (!data.title || !data.description || !data.location) {
+      throw new ApiError(400, 'Title, description, and location are required');
     }
 
-    const eventDate = new Date(date);
+    const eventDate = new Date(data.date);
     if (isNaN(eventDate.getTime())) {
-      throw new Error('Invalid date format');
+      throw new ApiError(400, 'Invalid date format');
     }
 
     if (eventDate < new Date()) {
-      throw new Error('Event date must be in the future');
+      throw new ApiError(400, 'Event date must be in the future');
     }
 
     const event = await prisma.event.create({
       data: {
-        title,
-        description,
+        ...data,
         date: eventDate,
-        location,
         organizerId: userId,
-        approved: false,
+        approved: true, // Auto-approve for now
       },
       include: {
         organizer: {
@@ -133,7 +103,7 @@ export class EventController {
     data: Partial<{
       title: string;
       description: string;
-      date: string;
+      date: Date;
       location: string;
     }>
   ): Promise<any> {
@@ -142,32 +112,20 @@ export class EventController {
     });
 
     if (!existingEvent) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     if (existingEvent.organizerId !== userId && userRole !== UserRole.ADMIN) {
-      throw new Error('You do not have permission to update this event');
+      throw new ApiError(403, 'You do not have permission to update this event');
     }
-
-    let eventDate: Date | undefined;
-    if (data.date) {
-      eventDate = new Date(data.date);
-      if (isNaN(eventDate.getTime())) {
-        throw new Error('Invalid date format');
-      }
-      if (eventDate < new Date()) {
-        throw new Error('Event date must be in the future');
-      }
+    
+    if (data.date && data.date < new Date()) {
+      throw new ApiError(400, 'Event date must be in the future');
     }
 
     const updatedEvent = await prisma.event.update({
       where: { id: eventId },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.description && { description: data.description }),
-        ...(eventDate && { date: eventDate }),
-        ...(data.location && { location: data.location }),
-      },
+      data,
       include: {
         organizer: {
           select: {
@@ -194,16 +152,12 @@ export class EventController {
     });
 
     if (!existingEvent) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     if (existingEvent.organizerId !== userId && userRole !== UserRole.ADMIN) {
-      throw new Error('You do not have permission to delete this event');
+      throw new ApiError(403, 'You do not have permission to delete this event');
     }
-
-    await prisma.rsvp.deleteMany({
-      where: { eventId },
-    });
 
     await prisma.event.delete({
       where: { id: eventId },
@@ -223,11 +177,11 @@ export class EventController {
     });
 
     if (!existingEvent) {
-      throw new Error('Event not found');
+      throw new ApiError(404, 'Event not found');
     }
 
     if (existingEvent.approved) {
-      throw new Error('Event is already approved');
+      throw new ApiError(400, 'Event is already approved');
     }
 
     const approvedEvent = await prisma.event.update({

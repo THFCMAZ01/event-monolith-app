@@ -44,6 +44,6 @@
     "bun-types": "latest",
     "prisma": "^5.22.0",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.0"
+    "vitest": "^4.0.3"
   }
 }
